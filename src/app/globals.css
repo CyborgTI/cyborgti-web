@@ -1,0 +1,399 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* tailwind v4 “dark variant” (lo dejamos por compatibilidad) */
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================
+   CYBORGTI — DESIGN SYSTEM (Dark only)
+   Brand: #1D00D1
+   BG:    #030015
+   FG:    #F3F3F3
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   Tailwind theme tokens (para poder usar clases tipo:
+   bg-brand-500, text-neutral-50, border-brand-600/30, etc.
+   --------------------------------------------------------- */
+@theme inline {
+  /* shadcn semantic colors */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* charts (opcionales) */
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* typography */
+    --font-sans: var(--font-electrolize);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+    "Liberation Mono", "Courier New", monospace;
+
+  /* radii */
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 3px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --radius-2xl: calc(var(--radius) + 12px);
+
+  /* brand scale */
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+  --color-brand-950: var(--brand-950);
+
+  /* neutral scale */
+  --color-neutral-50: var(--neutral-50);
+  --color-neutral-100: var(--neutral-100);
+  --color-neutral-200: var(--neutral-200);
+  --color-neutral-300: var(--neutral-300);
+  --color-neutral-400: var(--neutral-400);
+  --color-neutral-500: var(--neutral-500);
+  --color-neutral-600: var(--neutral-600);
+  --color-neutral-700: var(--neutral-700);
+  --color-neutral-800: var(--neutral-800);
+  --color-neutral-900: var(--neutral-900);
+  --color-neutral-950: var(--neutral-950);
+}
+
+/* ---------------------------------------------------------
+   Core tokens (Dark-only)
+   --------------------------------------------------------- */
+:root {
+  /* radii base (ajustable para todo el sitio) */
+  --radius: 0.95rem;
+
+  /* ========== Brand scale (oklch) — derivada de #1D00D1 ========== */
+  --brand-50: oklch(0.9187 0.0212 268.04);
+  --brand-100: oklch(0.8733 0.0423 268.04);
+  --brand-200: oklch(0.8052 0.074 268.04);
+  --brand-300: oklch(0.7257 0.1111 268.04);
+  --brand-400: oklch(0.5951 0.1719 268.04);
+  --brand-500: oklch(0.3964 0.2644 268.04); /* #1D00D1 */
+  --brand-600: oklch(0.3516 0.2331 268.63);
+  --brand-700: oklch(0.3068 0.2017 269.39);
+  --brand-800: oklch(0.2531 0.1642 270.69);
+  --brand-900: oklch(0.1874 0.1186 273.4);
+  --brand-950: oklch(0.1337 0.0816 277.86);
+
+  /* ========== Neutral scale (oklch) — de #F3F3F3 a #030015 ========== */
+  --neutral-50: oklch(0.9642 0 89.88); /* #F3F3F3 */
+  --neutral-100: oklch(0.8948 0.0046 283.98);
+  --neutral-200: oklch(0.8255 0.0092 283.98);
+  --neutral-300: oklch(0.7389 0.015 283.98);
+  --neutral-400: oklch(0.635 0.0219 283.98);
+  --neutral-500: oklch(0.5137 0.0299 283.98);
+  --neutral-600: oklch(0.3924 0.038 283.98);
+  --neutral-700: oklch(0.2884 0.0449 283.98);
+  --neutral-800: oklch(0.2018 0.0507 283.98);
+  --neutral-900: oklch(0.1498 0.0541 283.98);
+  --neutral-950: oklch(0.0978 0.0576 283.98); /* #030015 */
+
+  /* ========== Semantic (shadcn) — Dark-only ========== */
+  --background: var(--neutral-950);
+  --foreground: var(--neutral-50);
+
+  --card: oklch(0.12 0.055 284); /* ligeramente más claro que bg */
+  --card-foreground: var(--neutral-50);
+
+  --popover: oklch(0.12 0.055 284);
+  --popover-foreground: var(--neutral-50);
+
+  --primary: var(--brand-500);
+  --primary-foreground: var(--neutral-50);
+
+  --secondary: oklch(0.145 0.055 284);
+  --secondary-foreground: var(--neutral-50);
+
+  --muted: oklch(0.135 0.05 284);
+  --muted-foreground: oklch(0.78 0.01 284);
+
+  --accent: oklch(0.145 0.06 284);
+  --accent-foreground: var(--neutral-50);
+
+  --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: var(--neutral-50);
+
+  --border: oklch(0.2 0.045 284 / 40%);
+  --input: oklch(0.2 0.045 284 / 55%);
+  --ring: var(--brand-500);
+
+  /* Charts (opcionales) */
+  --chart-1: var(--brand-500);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
+
+  /* ========== Extra system tokens (para toda tu UI) ========== */
+  --surface-1: oklch(0.115 0.055 284); /* panels */
+  --surface-2: oklch(0.13 0.055 284); /* elevated */
+  --surface-3: oklch(0.145 0.055 284); /* more elevated */
+
+  --border-subtle: oklch(0.2 0.045 284 / 28%);
+  --border-strong: oklch(0.26 0.06 284 / 55%);
+
+  /* glows */
+  --glow-brand-soft: 0 0 60px rgba(29, 0, 209, 0.25);
+  --glow-brand-strong: 0 0 110px rgba(29, 0, 209, 0.45);
+
+  /* shadows */
+  --shadow-soft: 0 12px 40px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 18px 70px rgba(0, 0, 0, 0.55);
+  --shadow-brand: 0 18px 70px rgba(29, 0, 209, 0.4);
+
+  /* motion */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-1: 120ms;
+  --dur-2: 180ms;
+  --dur-3: 260ms;
+
+  /* z-index scale */
+  --z-header: 50;
+  --z-overlay: 60;
+  --z-modal: 70;
+}
+
+/* Mantenemos .dark por compatibilidad, pero es idéntico a :root (dark-only) */
+.dark {
+  /* Intencionalmente vacío: el sitio es dark-only */
+}
+
+/* ---------------------------------------------------------
+   Base layer
+   --------------------------------------------------------- */
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-sans);
+    letter-spacing: 0.01em;
+  }
+
+  ::selection {
+    background: oklch(0.3964 0.2644 268.04);
+    color: white;
+  }
+}
+
+/* ---------------------------------------------------------
+   Utilities (glow / gradients / scrollbar / helpers)
+   --------------------------------------------------------- */
+@layer utilities {
+  .bg-cyborg {
+    background: radial-gradient(
+        1200px 600px at 50% 0%,
+        color-mix(
+          in oklab,
+          oklch(0.3964 0.2644 268.04) 25%,
+          transparent
+        ),
+        transparent 60%
+      ),
+      linear-gradient(
+        180deg,
+        oklch(0.0978 0.0576 283.98),
+        oklch(0.0978 0.0576 283.98)
+      );
+  }
+
+  .glow-brand-soft {
+    box-shadow: var(--glow-brand-soft);
+  }
+
+  .glow-brand-strong {
+    box-shadow: var(--glow-brand-strong);
+  }
+
+  .shadow-card {
+    box-shadow: var(--shadow-card);
+  }
+
+  .shadow-brand {
+    box-shadow: var(--shadow-brand);
+  }
+
+  .transition-cyborg {
+    transition-timing-function: var(--ease-out);
+    transition-duration: var(--dur-2);
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(29, 0, 209, 0.65) rgba(255, 255, 255, 0.08);
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 10px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: rgba(29, 0, 209, 0.65);
+    border-radius: 999px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+/* =========================================================
+   TYPOGRAPHY SYSTEM — CyborgTI
+   Use: className="h1" | "h2" | "h3" | "p" | "lead" | "muted" | "overline"
+   ========================================================= */
+@layer utilities {
+  .h1 {
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.05;
+    font-size: clamp(2.25rem, 3.4vw, 3.75rem); /* 36 → 60 */
+  }
+
+  .h2 {
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    font-size: clamp(1.75rem, 2.4vw, 2.5rem); /* 28 → 40 */
+  }
+
+  .h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    font-size: clamp(1.25rem, 1.6vw, 1.75rem); /* 20 → 28 */
+  }
+
+  .h4 {
+    font-weight: 600;
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+    font-size: 1.125rem; /* 18 */
+  }
+
+  .p {
+    font-weight: 400;
+    line-height: 1.7;
+    font-size: 1rem; /* 16 */
+    color: color-mix(in oklab, white 85%, transparent);
+  }
+
+  .lead {
+    font-weight: 400;
+    line-height: 1.65;
+    font-size: 1.125rem; /* 18 */
+    color: color-mix(in oklab, white 72%, transparent);
+  }
+
+  .muted {
+    font-weight: 400;
+    font-size: 0.95rem;
+    color: color-mix(in oklab, white 60%, transparent);
+  }
+
+  .overline {
+    font-weight: 600;
+    font-size: 0.75rem; /* 12 */
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: color-mix(in oklab, white 70%, transparent);
+  }
+
+  .caption {
+    font-weight: 400;
+    font-size: 0.8125rem; /* 13 */
+    color: color-mix(in oklab, white 62%, transparent);
+  }
+}
+
+/* =========================================================
+   ✅ FIX GLOBAL: evita overflow horizontal en mobile
+   ========================================================= */
+html,
+body {
+
+  font-family: var(--font-sans), system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip; /* usa hidden si quieres compat máxima */
+}
+
+* {
+  min-width: 0;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* =========================================================
+   TICKER (más robusto en mobile)
+   ========================================================= */
+.ticker-track {
+  display: flex;
+  gap: 2rem;
+  width: max-content;
+  will-change: transform;
+  animation: ticker 18s linear infinite;
+
+  /* 🔒 evita que el transform “empuje” el viewport */
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+  contain: paint;
+}
+
+.ticker-item {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+@keyframes ticker {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
+}
