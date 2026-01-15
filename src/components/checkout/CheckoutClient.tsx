@@ -25,11 +25,6 @@ function normalizeWhatsAppDigits(input: string) {
   return input.replace(/\D/g, "");
 }
 
-/**
- * Entitlements finales (considera bundles):
- * - course line: qty para ese slug
- * - bundle line: suma 1 por cada curso incluido * qty del bundle
- */
 function buildEntitlementsFromLines(lines: ReturnType<typeof computeCheckoutTotals>["lines"]) {
   const counts: Record<string, number> = {};
 
@@ -44,7 +39,7 @@ function buildEntitlementsFromLines(lines: ReturnType<typeof computeCheckoutTota
     }
   }
 
-  return counts; // { slug: cantidad }
+  return counts;
 }
 
 function safeJsonParse(raw: string) {
@@ -64,23 +59,17 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
   const [fullName, setFullName] = useState("");
   const [whatsApp, setWhatsApp] = useState("");
 
-  // emails por curso: { [slug]: string[] }
   const [licenseEmails, setLicenseEmails] = useState<Record<string, string[]>>({});
-
-  // ✅ switch por curso: copiar licencia 1 a todas
   const [copyAllBySlug, setCopyAllBySlug] = useState<Record<string, boolean>>({});
 
-  // ✅ pago
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
 
-  // ✅ retorno mp + verificación webhook/kv
   const [orderId, setOrderId] = useState<string | null>(null);
   const [mpReturnStatus, setMpReturnStatus] = useState<string | null>(null);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
 
-  // ✅ enviar formulario (solo pagado)
   const [submitBusy, setSubmitBusy] = useState(false);
   const [submitMsg, setSubmitMsg] = useState<string | null>(null);
 
@@ -153,7 +142,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
   const canContinue = isNameValid && isWhatsAppValid && allEmailsValid;
 
-  // ✅ Detecta retorno de MP: /checkout?status=success|pending|failure
   useEffect(() => {
     const status = (sp.get("status") ?? "").trim();
     if (!status) return;
@@ -162,7 +150,9 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
     const extFromQuery = (sp.get("external_reference") ?? "").trim();
     const extFromLS =
-      typeof window !== "undefined" ? (localStorage.getItem("cyborgti:lastOrderId") ?? "").trim() : "";
+      typeof window !== "undefined"
+        ? (localStorage.getItem("cyborgti:lastOrderId") ?? "").trim()
+        : "";
 
     const ext = extFromQuery || extFromLS;
     setOrderId(ext || null);
@@ -170,13 +160,12 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
     if (status === "failure") setOrderStatus("failed");
   }, [sp]);
 
-  // ✅ Polling: consulta /api/order/status hasta que webhook marque "paid"
   useEffect(() => {
     if (!orderId) return;
     if (!mpReturnStatus) return;
     if (mpReturnStatus === "failure") return;
 
-    const oid = orderId; // ✅ fija (ya no es null)
+    const oid = orderId;
     let alive = true;
     let tries = 0;
 
@@ -200,7 +189,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
         if (st === "paid" || st === "rejected" || st === "failed") return;
 
         tries += 1;
-        if (tries >= 90) return; // ~3min
+        if (tries >= 90) return;
         setTimeout(tick, 2000);
       } catch {
         if (!alive) return;
@@ -354,7 +343,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      {/* Resumen */}
       <div className="rounded-2xl border border-border/60 bg-white/5 p-6 shadow-card">
         <h2 className="text-lg font-semibold text-white/95">Resumen</h2>
 
@@ -436,7 +424,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
         </div>
       </div>
 
-      {/* Datos */}
       <aside className="rounded-2xl border border-border/60 bg-white/5 p-6 shadow-card">
         <h2 className="text-lg font-semibold text-white/95">Datos para activar tu acceso</h2>
 
@@ -454,7 +441,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
               Orden: <span className="text-white/90">{orderId ?? "—"}</span>
             </div>
             <div className="mt-1 text-sm text-white/70">
-              Webhook/KV:{" "}
+              Verificación:{" "}
               <span className="text-white/90">
                 {orderStatus ?? (polling ? "verificando..." : "—")}
               </span>
@@ -489,7 +476,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
           </div>
         </div>
 
-        {/* ✅ Licencias */}
         <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
           <div className="text-sm font-semibold text-white/90">Licencias (NetAcad)</div>
           <p className="mt-2 text-sm text-white/70">
@@ -513,9 +499,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
                   {count > 1 ? (
                     <div className="mt-3 flex items-center justify-between gap-3">
-                      <span className="text-xs text-white/45">
-                        Tip: activa para llenar más rápido.
-                      </span>
+                      <span className="text-xs text-white/45">Tip: activa para llenar más rápido.</span>
 
                       <label className="flex items-center gap-2 text-xs text-white/70 cursor-pointer select-none">
                         <input
@@ -586,8 +570,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
                   {count > 1 ? (
                     <p className="mt-3 text-[12px] text-white/45">
-                      Si estás comprando para otras personas, coloca el correo de NetAcad de cada
-                      una.
+                      Si estás comprando para otras personas, coloca el correo de NetAcad de cada una.
                     </p>
                   ) : null}
                 </div>
@@ -596,7 +579,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
           </div>
         </div>
 
-        {/* Pago */}
         <div className="mt-6 rounded-xl border border-white/10 bg-black/20 p-4">
           <div className="text-sm font-semibold text-white/90">Pago</div>
           <p className="mt-2 text-sm text-white/70">
@@ -623,7 +605,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
             disabled={!paid || submitBusy}
             title={!paid ? "Se habilita cuando el webhook confirme el pago" : "Enviar"}
           >
-            {submitBusy ? "Enviando..." : "Enviar formulario (solo si pagó)"}
+            {submitBusy ? "Enviando..." : "Enviar"}
           </Button>
 
           {submitMsg ? <p className="text-xs text-white/70">{submitMsg}</p> : null}
