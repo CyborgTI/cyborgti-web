@@ -6,11 +6,6 @@ import { NextResponse } from "next/server";
 import { kv } from "@vercel/kv";
 import { Resend } from "resend";
 
-/**
- * ✅ IMPORTANTE:
- * No instanciar Resend en top-level porque Next puede evaluar/importar este archivo en build.
- * Si RESEND_API_KEY no existe en el entorno de build, puede romper.
- */
 function getResendClient() {
   const key = (process.env.RESEND_API_KEY ?? "").trim();
   if (!key) return null;
@@ -18,7 +13,6 @@ function getResendClient() {
 }
 
 function parseXSignature(xSignature: string) {
-  // formato: "ts=1704908010,v1=abcdef..."
   const parts = xSignature.split(",").map((p) => p.trim());
   let ts = "";
   let v1 = "";
@@ -50,11 +44,6 @@ function asObject(v: unknown): Record<string, any> {
 }
 
 function getDataIdFromRequest(url: URL, body: any) {
-  // MP puede mandar id en:
-  // - query: data.id=123
-  // - query: id=123
-  // - body: { data: { id: 123 } }
-  // - body: { id: 123 }
   const q1 = url.searchParams.get("data.id");
   const q2 = url.searchParams.get("id");
 
@@ -113,17 +102,17 @@ function escapeHtml(s: string) {
 }
 
 function getEmailFrom() {
-  // Si ya verificaste dominio en Resend, ponlo como "CyborgTI <no-reply@tudominio>"
-  const from = (process.env.EMAIL_FROM ?? "").trim();
+  const from =
+    (process.env.EMAIL_FROM ?? "").trim() || (process.env.RESEND_FROM ?? "").trim();
   return from || "CyborgTI <onboarding@resend.dev>";
 }
 
 async function sendApprovedEmails(payment: any, orderId: string) {
   const resend = getResendClient();
-  if (!resend) {
-    console.warn("[MP WEBHOOK] RESEND_API_KEY missing, skip email");
-    return;
-  }
+  if (!resend) return;
+
+  const from = getEmailFrom();
+  if (!from) return;
 
   const metadata = asObject(payment?.metadata);
 
@@ -132,7 +121,6 @@ async function sendApprovedEmails(payment: any, orderId: string) {
   const entitlements = asObject(metadata.entitlements);
   const licenseEmails = normalizeEmailsShape(metadata.licenses);
 
-  // A quién enviar
   const payerEmail = String(payment?.payer?.email ?? "").trim();
   const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim();
 
@@ -165,19 +153,10 @@ async function sendApprovedEmails(payment: any, orderId: string) {
     </div>
   `;
 
-  const from = getEmailFrom();
-
-  // Email al comprador
   if (toBuyer) {
-    await resend.emails.send({
-      from,
-      to: toBuyer,
-      subject,
-      html,
-    });
+    await resend.emails.send({ from, to: toBuyer, subject, html });
   }
 
-  // Email al admin (opcional)
   if (toAdmin) {
     await resend.emails.send({
       from,
@@ -188,14 +167,6 @@ async function sendApprovedEmails(payment: any, orderId: string) {
   }
 }
 
-/**
- * Webhook Mercado Pago + Vercel KV + Resend:
- * 1) valida firma (x-signature + x-request-id + dataId)
- * 2) consulta el pago a MP
- * 3) dedup por paymentId (mp:payment:<id>)
- * 4) actualiza KV: order:<orderId> => paid / rejected / pending
- * 5) si paid => envía email(s) 1 sola vez (dedup por orderKey status)
- */
 export async function POST(req: Request) {
   const secret = (process.env.MP_WEBHOOK_SECRET ?? "").trim();
   if (!secret) {
@@ -237,41 +208,29 @@ export async function POST(req: Request) {
   try {
     const payment = await fetchPayment(dataId);
 
-    const status = payment?.status as string | undefined; // approved, pending, rejected...
+    const status = payment?.status as string | undefined;
     const paymentId = String(payment?.id ?? dataId);
-
-    // orderId = external_reference enviado desde /api/mp/preference
     const orderId = String(payment?.external_reference ?? "").trim() || null;
 
     const approved = status === "approved";
     const rejected = status === "rejected" || status === "cancelled";
     const pending = status === "pending" || status === "in_process";
 
-    console.log("[MP WEBHOOK] payment:", {
-      paymentId,
-      status,
-      orderId,
-      transaction_amount: payment?.transaction_amount,
-      currency_id: payment?.currency_id,
-      payer_email: payment?.payer?.email,
-    });
-
-    // Si no hay orderId, responde 200 igual (no forzar reintentos)
     if (!orderId) {
       return NextResponse.json(
-        { ok: true, approved, note: "No external_reference en el pago" },
+        { ok: true, approved, note: "No external_reference" },
         { status: 200 }
       );
     }
 
-    // ✅ DEDUP por paymentId (idempotencia)
     const eventKey = `mp:payment:${paymentId}`;
     const already = await kv.get(eventKey);
     if (already) {
       return NextResponse.json({ ok: true, approved, dedup: true }, { status: 200 });
     }
+
     await kv.set(eventKey, { seenAt: Date.now(), orderId, status });
-    await kv.expire(eventKey, 60 * 60 * 24 * 7); // 7 días
+    await kv.expire(eventKey, 60 * 60 * 24 * 7);
 
     const orderKey = `order:${orderId}`;
     const prev = asObject(await kv.get(orderKey));
@@ -295,22 +254,25 @@ export async function POST(req: Request) {
       },
     });
 
-    // ✅ Si pasó a paid ahora (y antes no era paid) => enviar emails una sola vez
-    if (nextStatus === "paid" && prevStatus !== "paid") {
+    const sentKey = `order:${orderId}:email_sent`;
+    const alreadySent = await kv.get(sentKey);
+
+    if (nextStatus === "paid" && prevStatus !== "paid" && !alreadySent) {
       try {
         await sendApprovedEmails(payment, orderId);
-        const sentKey = `order:${orderId}:email_sent`;
         await kv.set(sentKey, { at: Date.now(), paymentId });
-        await kv.expire(sentKey, 60 * 60 * 24 * 30); // 30 días
-      } catch (e: any) {
-        console.error("[MP WEBHOOK] email error:", e?.message || e);
-        // No fallamos el webhook por email, para evitar reintentos de MP
+        await kv.expire(sentKey, 60 * 60 * 24 * 30);
+      } catch (e) {
+        // no romper webhook
+        console.error("[MP WEBHOOK] email send failed:", e);
       }
     }
 
     return NextResponse.json({ ok: true, approved, orderId, status: nextStatus }, { status: 200 });
   } catch (err: any) {
-    console.error("[MP WEBHOOK] error:", err?.message || err);
-    return NextResponse.json({ ok: false, error: "Error validando pago" }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: err?.message || "Error validando pago" },
+      { status: 500 }
+    );
   }
 }

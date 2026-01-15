@@ -1,8 +1,8 @@
+// src/components/checkout/CheckoutClient.tsx
 "use client";
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { formatPEN } from "@/lib/money";
@@ -54,8 +54,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
   const items = useCartStore((s) => s.items);
   const clear = useCartStore((s) => s.clear);
 
-  const sp = useSearchParams();
-
   const [fullName, setFullName] = useState("");
   const [whatsApp, setWhatsApp] = useState("");
 
@@ -64,14 +62,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
   const [paying, setPaying] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-
-  const [orderId, setOrderId] = useState<string | null>(null);
-  const [mpReturnStatus, setMpReturnStatus] = useState<string | null>(null);
-  const [orderStatus, setOrderStatus] = useState<string | null>(null);
-  const [polling, setPolling] = useState(false);
-
-  const [submitBusy, setSubmitBusy] = useState(false);
-  const [submitMsg, setSubmitMsg] = useState<string | null>(null);
 
   const totals = useMemo(() => {
     return computeCheckoutTotals({
@@ -142,71 +132,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
   const canContinue = isNameValid && isWhatsAppValid && allEmailsValid;
 
-  useEffect(() => {
-    const status = (sp.get("status") ?? "").trim();
-    if (!status) return;
-
-    setMpReturnStatus(status);
-
-    const extFromQuery = (sp.get("external_reference") ?? "").trim();
-    const extFromLS =
-      typeof window !== "undefined"
-        ? (localStorage.getItem("cyborgti:lastOrderId") ?? "").trim()
-        : "";
-
-    const ext = extFromQuery || extFromLS;
-    setOrderId(ext || null);
-
-    if (status === "failure") setOrderStatus("failed");
-  }, [sp]);
-
-  useEffect(() => {
-    if (!orderId) return;
-    if (!mpReturnStatus) return;
-    if (mpReturnStatus === "failure") return;
-
-    const oid = orderId;
-    let alive = true;
-    let tries = 0;
-
-    async function tick() {
-      try {
-        if (!alive) return;
-        setPolling(true);
-
-        const r = await fetch(`/api/order/status?orderId=${encodeURIComponent(oid)}`, {
-          cache: "no-store",
-        });
-
-        const raw = await r.text().catch(() => "");
-        const data = safeJsonParse(raw);
-
-        if (!alive) return;
-
-        const st = (data?.status ?? null) as string | null;
-        setOrderStatus(st);
-
-        if (st === "paid" || st === "rejected" || st === "failed") return;
-
-        tries += 1;
-        if (tries >= 90) return;
-        setTimeout(tick, 2000);
-      } catch {
-        if (!alive) return;
-        tries += 1;
-        if (tries >= 90) return;
-        setTimeout(tick, 2500);
-      } finally {
-        if (alive) setPolling(false);
-      }
-    }
-
-    tick();
-    return () => {
-      alive = false;
-    };
-  }, [orderId, mpReturnStatus]);
-
   async function handlePayMercadoPago() {
     if (!canContinue || paying) return;
 
@@ -221,15 +146,14 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
         currency_id: "PEN" as const,
       }));
 
-      const newOrderId = `cyborgti_${Date.now()}`;
-      setOrderId(newOrderId);
+      const orderId = `cyborgti_${Date.now()}`;
 
       if (typeof window !== "undefined") {
-        localStorage.setItem("cyborgti:lastOrderId", newOrderId);
+        localStorage.setItem("cyborgti:lastOrderId", orderId);
       }
 
       const metadata = {
-        orderId: newOrderId,
+        orderId,
         fullName: fullName.trim(),
         whatsApp: whatsApp.trim(),
         licenses: licenseEmails,
@@ -247,7 +171,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: mpItems,
-          external_reference: newOrderId,
+          external_reference: orderId,
           metadata,
         }),
       });
@@ -285,46 +209,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
     }
   }
 
-  async function handleSubmitAfterPaid() {
-    if (!orderId) return;
-    if (orderStatus !== "paid") return;
-    if (submitBusy) return;
-
-    setSubmitMsg(null);
-    setSubmitBusy(true);
-
-    try {
-      const payload = {
-        fullName: fullName.trim(),
-        whatsApp: whatsApp.trim(),
-        licenses: licenseEmails,
-        entitlements,
-        totals,
-        lines: totals.lines,
-      };
-
-      const r = await fetch("/api/checkout/submit", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId, payload }),
-      });
-
-      const raw = await r.text().catch(() => "");
-      const data = safeJsonParse(raw);
-
-      if (!r.ok) {
-        setSubmitMsg(data?.error ? String(data.error) : "No se pudo enviar.");
-        return;
-      }
-
-      setSubmitMsg(data?.already ? "Ya fue enviado anteriormente ✅" : "Enviado ✅");
-    } catch {
-      setSubmitMsg("Error enviando formulario.");
-    } finally {
-      setSubmitBusy(false);
-    }
-  }
-
   if (items.length === 0) {
     return (
       <div className="rounded-2xl border border-border/60 bg-white/5 p-8 shadow-card">
@@ -337,9 +221,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
       </div>
     );
   }
-
-  const showReturnBox = !!mpReturnStatus;
-  const paid = orderStatus === "paid";
 
   return (
     <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -430,24 +311,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
         <p className="mt-2 text-sm text-white/70">
           Ingresa tus datos y los correos de NetAcad por cada licencia (máximo 5 por curso).
         </p>
-
-        {showReturnBox ? (
-          <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4">
-            <div className="text-sm font-semibold text-white/90">Estado del pago</div>
-            <div className="mt-2 text-sm text-white/70">
-              Retorno MP: <span className="text-white/90">{mpReturnStatus}</span>
-            </div>
-            <div className="mt-1 text-sm text-white/70">
-              Orden: <span className="text-white/90">{orderId ?? "—"}</span>
-            </div>
-            <div className="mt-1 text-sm text-white/70">
-              Verificación:{" "}
-              <span className="text-white/90">
-                {orderStatus ?? (polling ? "verificando..." : "—")}
-              </span>
-            </div>
-          </div>
-        ) : null}
 
         <div className="mt-5 space-y-3">
           <div>
@@ -597,18 +460,6 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
           >
             {paying ? "Redirigiendo..." : "Pagar con Mercado Pago"}
           </Button>
-
-          <Button
-            variant="outline"
-            className="w-full border-brand-500/40 text-white hover:bg-brand-500/10 disabled:opacity-50"
-            onClick={handleSubmitAfterPaid}
-            disabled={!paid || submitBusy}
-            title={!paid ? "Se habilita cuando el webhook confirme el pago" : "Enviar"}
-          >
-            {submitBusy ? "Enviando..." : "Enviar"}
-          </Button>
-
-          {submitMsg ? <p className="text-xs text-white/70">{submitMsg}</p> : null}
 
           <Button
             variant="outline"
