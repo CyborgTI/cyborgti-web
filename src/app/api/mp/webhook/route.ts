@@ -43,6 +43,14 @@ function asObject(v: unknown): Record<string, any> {
   return {};
 }
 
+function pickString(...vals: Array<unknown>) {
+  for (const v of vals) {
+    const s = String(v ?? "").trim();
+    if (s) return s;
+  }
+  return "";
+}
+
 function getDataIdFromRequest(url: URL, body: any) {
   const q1 = url.searchParams.get("data.id");
   const q2 = url.searchParams.get("id");
@@ -52,6 +60,12 @@ function getDataIdFromRequest(url: URL, body: any) {
 
   const id = q1 ?? q2 ?? (b1 != null ? String(b1) : null) ?? (b2 != null ? String(b2) : null);
   return id && String(id).trim().length ? String(id).trim() : null;
+}
+
+function getTopicFromRequest(url: URL, body: any) {
+  const qTopic = url.searchParams.get("topic") || url.searchParams.get("type");
+  const bTopic = body?.type || body?.topic;
+  return (qTopic ?? bTopic ?? "").toString().trim();
 }
 
 async function fetchPayment(paymentId: string) {
@@ -83,15 +97,6 @@ async function fetchPayment(paymentId: string) {
   return data;
 }
 
-function normalizeEmailsShape(v: unknown): Record<string, string[]> {
-  const o = asObject(v);
-  const out: Record<string, string[]> = {};
-  for (const [k, val] of Object.entries(o)) {
-    if (Array.isArray(val)) out[k] = val.map((x) => String(x ?? "")).filter(Boolean);
-  }
-  return out;
-}
-
 function escapeHtml(s: string) {
   return String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -102,9 +107,211 @@ function escapeHtml(s: string) {
 }
 
 function getEmailFrom() {
-  const from =
-    (process.env.EMAIL_FROM ?? "").trim() || (process.env.RESEND_FROM ?? "").trim();
+  const from = (process.env.EMAIL_FROM ?? "").trim() || (process.env.RESEND_FROM ?? "").trim();
   return from || "CyborgTI <onboarding@resend.dev>";
+}
+
+function buildApprovedEmailHTML(params: {
+  logoUrl: string;
+  orderId: string;
+  fullName: string;
+  whatsapp: string;
+  total: string;
+  courses: string[];
+}) {
+  const { logoUrl, orderId, fullName, whatsapp, total, courses } = params;
+
+  const coursesHtml = courses.length
+    ? courses
+        .map(
+          (c) => `
+            <tr>
+              <td style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.08);color:#e5e7eb;font-size:14px;">
+                ${escapeHtml(c)}
+              </td>
+            </tr>
+          `
+        )
+        .join("")
+    : `
+      <tr>
+        <td style="padding:10px 0;color:#cbd5e1;font-size:14px;">—</td>
+      </tr>
+    `;
+
+  const IG_URL = "https://www.instagram.com/cyborg.ti/";
+  const FB_URL = "https://www.facebook.com/CyborgTI";
+  const WA_URL = "https://wa.me/51974126985";
+
+  return `<!doctype html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width" />
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>CyborgTI - Pago confirmado</title>
+  </head>
+  <body style="margin:0;padding:0;background:#0b0f14;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0b0f14;padding:24px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:680px;background:#0f172a;border:1px solid rgba(255,255,255,.10);border-radius:16px;overflow:hidden;">
+            <tr>
+              <td style="padding:18px 20px;background:linear-gradient(135deg,rgba(34,197,94,.22),rgba(59,130,246,.18));border-bottom:1px solid rgba(255,255,255,.10);">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td valign="top" style="padding:0;">
+                      <div style="color:#cbd5e1;font-size:12px;letter-spacing:.16em;text-transform:uppercase;">
+                        CyborgTI
+                      </div>
+                      <div style="margin-top:8px;color:#ffffff;font-size:22px;font-weight:800;line-height:1.2;">
+                        ✅ Pago confirmado
+                      </div>
+                      <div style="margin-top:6px;color:#cbd5e1;font-size:13px;line-height:1.5;">
+                        Gracias por tu compra. Ya estamos procesando tu acceso.
+                      </div>
+                    </td>
+                    <td align="right" valign="top" style="padding:0;">
+                      <img
+                        src="${logoUrl}"
+                        width="44"
+                        height="44"
+                        alt="CyborgTI"
+                        style="display:block;border:0;outline:none;text-decoration:none;opacity:.95"
+                      />
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:18px 20px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="padding:0 0 12px 0;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        <tr>
+                          <td style="padding:0;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                              <tr>
+                                <td style="padding:0 0 10px 0;">
+                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                      <td style="background:#0b1224;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px;">
+                                        <div style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Orden</div>
+                                        <div style="margin-top:6px;color:#ffffff;font-size:14px;font-weight:700;">${escapeHtml(
+                                          orderId
+                                        )}</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                </td>
+                                <td style="width:12px;"></td>
+                                <td style="padding:0 0 10px 0;">
+                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                      <td style="background:#0b1224;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px;">
+                                        <div style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Cliente</div>
+                                        <div style="margin-top:6px;color:#ffffff;font-size:14px;font-weight:700;">${escapeHtml(
+                                          fullName || "Cliente"
+                                        )}</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                </td>
+                              </tr>
+
+                              <tr>
+                                <td style="padding:0;">
+                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                      <td style="background:#0b1224;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px;">
+                                        <div style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">WhatsApp</div>
+                                        <div style="margin-top:6px;color:#ffffff;font-size:14px;font-weight:700;">${escapeHtml(
+                                          whatsapp || "—"
+                                        )}</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                </td>
+                                <td style="width:12px;"></td>
+                                <td style="padding:0;">
+                                  <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                      <td style="background:#0b1224;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px;">
+                                        <div style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Total</div>
+                                        <div style="margin-top:6px;color:#ffffff;font-size:14px;font-weight:700;">${escapeHtml(
+                                          total || "—"
+                                        )}</div>
+                                      </td>
+                                    </tr>
+                                  </table>
+                                </td>
+                              </tr>
+
+                            </table>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:4px;background:#0b1224;border:1px solid rgba(255,255,255,.10);border-radius:12px;">
+                  <tr>
+                    <td style="padding:14px 14px 8px 14px;">
+                      <div style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Cursos</div>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 14px 10px 14px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                        ${coursesHtml}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;background:#0b1224;border:1px solid rgba(255,255,255,.10);border-radius:12px;">
+                  <tr>
+                    <td style="padding:14px;">
+                      <div style="color:#94a3b8;font-size:12px;text-transform:uppercase;letter-spacing:.08em;">Siguiente paso</div>
+                      <div style="margin-top:8px;color:#e5e7eb;font-size:14px;line-height:1.6;">
+                        Te contactaremos para activar tus accesos y confirmar las licencias.
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+
+                <div style="margin-top:14px;color:#94a3b8;font-size:12px;line-height:1.5;">
+                  Si no reconoces esta compra, responde a este correo.
+                </div>
+              </td>
+            </tr>
+
+            <tr>
+              <td style="padding:14px 20px;background:#0b0f14;border-top:1px solid rgba(255,255,255,.10);">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                  <tr>
+                    <td style="color:#94a3b8;font-size:12px;line-height:1.5;">
+                      © ${new Date().getFullYear()} CyborgTI
+                    </td>
+                    <td align="right" style="font-size:12px;line-height:1.5;">
+                      <a href="${FB_URL}" style="color:#cbd5e7;text-decoration:none;margin-left:10px;">Facebook</a>
+                      <a href="${IG_URL}" style="color:#cbd5e7;text-decoration:none;margin-left:10px;">Instagram</a>
+                      <a href="${WA_URL}" style="color:#cbd5e7;text-decoration:none;margin-left:10px;">WhatsApp</a>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>`;
 }
 
 async function sendApprovedEmails(payment: any, orderId: string) {
@@ -112,58 +319,90 @@ async function sendApprovedEmails(payment: any, orderId: string) {
   if (!resend) return;
 
   const from = getEmailFrom();
-  if (!from) return;
 
+  // 🔎 LOG para confirmar env en local
+  console.log("[MP WEBHOOK] ENV", {
+    ADMIN_EMAIL: process.env.ADMIN_EMAIL,
+    EMAIL_FROM: process.env.EMAIL_FROM,
+    RESEND_FROM: process.env.RESEND_FROM,
+    NODE_ENV: process.env.NODE_ENV,
+  });
+
+  // metadata de MP
   const metadata = asObject(payment?.metadata);
+  const metaEntitlements = asObject(metadata.entitlements);
 
-  const fullName = String(metadata.fullName ?? "Cliente");
-  const whatsapp = String(metadata.whatsApp ?? "");
-  const entitlements = asObject(metadata.entitlements);
-  const licenseEmails = normalizeEmailsShape(metadata.licenses);
+  // KV
+  const orderKey = `order:${orderId}`;
+  const order = asObject(await kv.get(orderKey));
+  const orderCustomer = asObject(order.customer);
+  const orderMeta = asObject(order.metadata);
 
-  const payerEmail = String(payment?.payer?.email ?? "").trim();
-  const adminEmail = (process.env.ADMIN_EMAIL ?? "").trim();
+  const fullName = pickString(
+    metadata.fullName,
+    orderCustomer.fullName,
+    orderMeta.fullName,
+    order.fullName,
+    "Cliente"
+  );
 
-  const toBuyer = payerEmail.length ? payerEmail : null;
-  const toAdmin = adminEmail.length ? adminEmail : null;
+  const whatsapp = pickString(
+    metadata.whatsApp,
+    metadata.whatsapp,
+    orderCustomer.whatsApp,
+    orderCustomer.whatsapp,
+    orderMeta.whatsApp,
+    orderMeta.whatsapp,
+    order.whatsApp,
+    order.whatsapp
+  );
 
+  const orderEntitlements = asObject(order.entitlements);
+  const entitlements =
+    Object.keys(metaEntitlements).length > 0 ? metaEntitlements : orderEntitlements;
   const courses = Object.keys(entitlements);
-  const coursesText = courses.length ? courses.join(", ") : "—";
+
+  const orderEmail = pickString(orderCustomer.email, orderMeta.email, order.email);
+  const metaEmail = pickString(metadata.email);
+  const payerEmail = pickString(payment?.payer?.email);
+
+  // ✅ buyer list
+  const buyerRecipients = Array.from(
+    new Set([orderEmail, metaEmail, payerEmail].map((x) => String(x ?? "").trim()).filter(Boolean))
+  );
+
+  const adminEmail = pickString(process.env.ADMIN_EMAIL);
+
+  const total =
+    payment?.transaction_amount != null
+      ? `${String(payment?.currency_id ?? "PEN")} ${String(payment?.transaction_amount)}`
+      : "";
+
+  const baseUrl =
+    (process.env.NEXT_PUBLIC_APP_URL ?? "").trim() ||
+    (process.env.APP_URL ?? "").trim() ||
+    "https://cyborgti.com";
+
+  const logoUrl = `${baseUrl}/logo/cyborgti.svg`;
 
   const subject = "✅ Pago confirmado - CyborgTI";
+  const html = buildApprovedEmailHTML({ logoUrl, orderId, fullName, whatsapp, total, courses });
 
-  const html = `
-    <div style="font-family: Arial, sans-serif; line-height:1.5">
-      <h2>Pago confirmado</h2>
-      <p><strong>Orden:</strong> ${escapeHtml(orderId)}</p>
-      <p><strong>Cliente:</strong> ${escapeHtml(fullName)}</p>
-      ${whatsapp ? `<p><strong>WhatsApp:</strong> ${escapeHtml(whatsapp)}</p>` : ""}
-      <p><strong>Cursos:</strong> ${escapeHtml(coursesText)}</p>
-
-      <hr style="border:none;border-top:1px solid #eee;margin:16px 0" />
-
-      <p><strong>Licencias (NetAcad) por curso</strong></p>
-      <pre style="background:#111;color:#eee;padding:12px;border-radius:8px;overflow:auto">${escapeHtml(
-        JSON.stringify(licenseEmails, null, 2)
-      )}</pre>
-
-      <p style="color:#666;font-size:12px;margin-top:14px">
-        Este correo fue enviado automáticamente al confirmarse el pago.
-      </p>
-    </div>
-  `;
-
-  if (toBuyer) {
-    await resend.emails.send({ from, to: toBuyer, subject, html });
+  // ✅ Enviar al/los buyers
+  for (const to of buyerRecipients) {
+    await resend.emails.send({ from, to, subject, html });
   }
 
-  if (toAdmin) {
+  // ✅ Enviar SIEMPRE al admin (si existe)
+  if (adminEmail) {
     await resend.emails.send({
       from,
-      to: toAdmin,
+      to: adminEmail,
       subject: `[ADMIN] ${subject} (${orderId})`,
       html,
     });
+  } else {
+    console.warn("[MP WEBHOOK] ADMIN_EMAIL no definido -> no se envio admin");
   }
 }
 
@@ -185,24 +424,29 @@ export async function POST(req: Request) {
 
   const url = new URL(req.url);
   const dataId = getDataIdFromRequest(url, body);
+  const topic = getTopicFromRequest(url, body);
 
-  if (!xSignature || !xRequestId || !dataId) {
-    return NextResponse.json(
-      { ok: false, error: "Faltan headers o id (x-signature, x-request-id, data.id)" },
-      { status: 400 }
-    );
+  const isPayment = topic === "payment" || topic === "payments";
+  if (topic && !isPayment) {
+    return NextResponse.json({ ok: true, ignored: true, topic }, { status: 200 });
   }
 
-  const { ts, v1 } = parseXSignature(xSignature);
-  if (!ts || !v1) {
-    return NextResponse.json({ ok: false, error: "x-signature inválido" }, { status: 401 });
+  if (!dataId) {
+    return NextResponse.json({ ok: true, ignored: true, reason: "no data.id" }, { status: 200 });
   }
 
-  const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
-  const computed = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+  if (xSignature && xRequestId) {
+    const { ts, v1 } = parseXSignature(xSignature);
+    if (!ts || !v1) {
+      return NextResponse.json({ ok: false, error: "x-signature inválido" }, { status: 401 });
+    }
 
-  if (!timingSafeEqualHex(computed, v1)) {
-    return NextResponse.json({ ok: false, error: "Firma inválida" }, { status: 401 });
+    const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+    const computed = crypto.createHmac("sha256", secret).update(manifest).digest("hex");
+
+    if (!timingSafeEqualHex(computed, v1)) {
+      return NextResponse.json({ ok: false, error: "Firma inválida" }, { status: 401 });
+    }
   }
 
   try {
@@ -217,10 +461,7 @@ export async function POST(req: Request) {
     const pending = status === "pending" || status === "in_process";
 
     if (!orderId) {
-      return NextResponse.json(
-        { ok: true, approved, note: "No external_reference" },
-        { status: 200 }
-      );
+      return NextResponse.json({ ok: true, approved, note: "No external_reference" }, { status: 200 });
     }
 
     const eventKey = `mp:payment:${paymentId}`;
@@ -263,7 +504,6 @@ export async function POST(req: Request) {
         await kv.set(sentKey, { at: Date.now(), paymentId });
         await kv.expire(sentKey, 60 * 60 * 24 * 30);
       } catch (e) {
-        // no romper webhook
         console.error("[MP WEBHOOK] email send failed:", e);
       }
     }

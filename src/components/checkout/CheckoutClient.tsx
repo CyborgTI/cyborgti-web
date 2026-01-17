@@ -55,6 +55,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
   const clear = useCartStore((s) => s.clear);
 
   const [fullName, setFullName] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState(""); // ✅ NUEVO: email del comprador
   const [whatsApp, setWhatsApp] = useState("");
 
   const [licenseEmails, setLicenseEmails] = useState<Record<string, string[]>>({});
@@ -110,6 +111,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
   const digits = normalizeWhatsAppDigits(whatsApp);
   const isWhatsAppValid = digits.length >= 8;
   const isNameValid = fullName.trim().length >= 3;
+  const isBuyerEmailValid = isEmailValid(buyerEmail);
 
   const allEmailsValid = useMemo(() => {
     const slugs = Object.keys(entitlements);
@@ -130,7 +132,8 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
     return true;
   }, [entitlements, licenseEmails]);
 
-  const canContinue = isNameValid && isWhatsAppValid && allEmailsValid;
+  // ✅ ahora también pedimos email del comprador
+  const canContinue = isNameValid && isBuyerEmailValid && isWhatsAppValid && allEmailsValid;
 
   async function handlePayMercadoPago() {
     if (!canContinue || paying) return;
@@ -155,6 +158,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
       const metadata = {
         orderId,
         fullName: fullName.trim(),
+        email: buyerEmail.trim(), // ✅ NUEVO: email del comprador
         whatsApp: whatsApp.trim(),
         licenses: licenseEmails,
         entitlements,
@@ -166,6 +170,22 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
         lines: totals.lines,
       };
 
+      // ✅ Guardar payload local para el return handler (submit al volver de MP)
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "cyborgti:checkoutPayload",
+          JSON.stringify({
+            fullName: metadata.fullName,
+            email: metadata.email,
+            whatsApp: metadata.whatsApp,
+            licenses: metadata.licenses,
+            entitlements: metadata.entitlements,
+            totals: metadata.totals,
+            lines: metadata.lines,
+          })
+        );
+      }
+
       const res = await fetch("/api/mp/preference", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -173,6 +193,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
           items: mpItems,
           external_reference: orderId,
           metadata,
+          email: buyerEmail.trim(), // ✅ opcional: set payer.email en MP (ayuda en prod/test)
         }),
       });
 
@@ -235,9 +256,7 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <div className="text-white/90 font-semibold">{l.title}</div>
-                      <div className="text-sm text-white/60">
-                        Incluye: {l.includes.join(" + ")}
-                      </div>
+                      <div className="text-sm text-white/60">Incluye: {l.includes.join(" + ")}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-white/90">{formatPEN(l.unitPricePEN)}</div>
@@ -323,6 +342,22 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
               placeholder="Ej: Juan Pérez"
               className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white/90 outline-none placeholder:text-white/35 focus:border-brand-500/50"
             />
+          </div>
+
+          {/* ✅ NUEVO: email comprador */}
+          <div>
+            <label className="text-xs uppercase tracking-[0.25em] text-white/60">
+              Correo del comprador
+            </label>
+            <input
+              value={buyerEmail}
+              onChange={(e) => setBuyerEmail(e.target.value)}
+              placeholder="Ej: micorreo@gmail.com"
+              className="mt-2 w-full rounded-xl border border-white/10 bg-black/25 px-3 py-2 text-sm text-white/90 outline-none placeholder:text-white/35 focus:border-brand-500/50"
+            />
+            <p className="mt-2 text-xs text-white/45">
+              * Enviaremos el comprobante y detalles a este correo.
+            </p>
           </div>
 
           <div>
@@ -483,7 +518,8 @@ export function CheckoutClient({ basePriceBySlug, titleBySlug, promos }: Props) 
 
         {!canContinue ? (
           <p className="mt-3 text-xs text-white/45">
-            Completa nombre, WhatsApp válido y todos los correos NetAcad por licencia para continuar.
+            Completa nombre, correo del comprador, WhatsApp válido y todos los correos NetAcad por
+            licencia para continuar.
           </p>
         ) : null}
       </aside>

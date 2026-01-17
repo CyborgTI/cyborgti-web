@@ -2,6 +2,7 @@
 import { Suspense } from "react";
 
 import { CheckoutClient } from "@/components/checkout/CheckoutClient";
+import { CheckoutReturnHandler } from "@/components/checkout/CheckoutReturnHandler";
 import { getAllCourses } from "@/data/courses/getAll";
 import { getActivePromos } from "@/data/promos/getActivePromos";
 
@@ -29,6 +30,11 @@ export default async function CheckoutPage() {
 
   return (
     <main className="mx-auto min-h-dvh max-w-7xl px-4 py-10">
+      {/* ✅ Maneja el retorno de Mercado Pago: /checkout?status=...&orderId=... */}
+      <Suspense fallback={null}>
+        <CheckoutReturnHandler />
+      </Suspense>
+
       <Suspense fallback={<CheckoutFallback />}>
         <CheckoutClient
           basePriceBySlug={basePriceBySlug}
