@@ -7,7 +7,7 @@ const course: CourseDTO = {
     "Acceso oficial Cisco NetAcad por 3 meses + 3 módulos CCNA (ITN, SRWE, ENSA).",
   longDescription:
     "Preparación completa para el examen internacional CCNA 200-301 con el roadmap oficial de Cisco NetAcad. Ideal para iniciar y construir bases sólidas en redes.",
-  pricePEN: 250,
+  pricePEN: 200,
   level: "Inicial",
   durationWeeks: 6,
   includes: [

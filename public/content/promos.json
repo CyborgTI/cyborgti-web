@@ -3,7 +3,7 @@
     "top": [
       {
         "id": "2x1-ccna-cyberops",
-        "label": "2x1 CCNA + CyberOps • S/10",
+        "label": "2x1 CCNA + CyberOps • S/299",
         "image": "/promociones/promo2x1.png",
         "href": "/promociones/2x1-ccna-cyberops"
       },
@@ -25,13 +25,13 @@
       "id": "2x1-ccna-cyberops",
       "type": "bundle",
       "title": "2x1 CCNA + CyberOps",
-      "subtitle": "S/10 por inauguración de la web",
+      "subtitle": "S/299 por inauguración de la web",
       "image": "/promociones/promo2x1.png",
       "activeFrom": "2026-01-01",
       "activeTo": "2026-02-15",
       "href": "/promociones/2x1-ccna-cyberops",
       "courses": ["ccna-200-301", "cyberops-associate"],
-      "bundlePricePEN": 10,
+      "bundlePricePEN": 299,
       "priority": 100,
       "badge": "2x1"
     },
