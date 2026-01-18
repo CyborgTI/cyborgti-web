@@ -50,9 +50,21 @@ export const metadata: Metadata = {
     },
   },
 
+  // ✅ Verificación Google Search Console (Tag HTML)
+  // Pega aquí el token COMPLETO que te dio Search Console (solo el "content")
+  verification: {
+    google: "cK17sAamcV2UDyQSi8qWe8Os57u7gZly25FU_Sylbpc",
+  },
+
+  // ✅ Favicons (rutas estándar para bots)
   icons: {
-    icon: [{ url: "/favicon.ico" }, { url: "/icon.png", type: "image/png" }],
-    apple: [{ url: "/apple-icon.png", type: "image/png" }],
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-32x32.png", type: "image/png", sizes: "32x32" },
+      { url: "/favicon-16x16.png", type: "image/png", sizes: "16x16" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
   },
 
   manifest: "/manifest.webmanifest",
